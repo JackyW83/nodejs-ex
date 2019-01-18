@@ -1,4 +1,8 @@
 //  OpenShift sample Node application
+
+var os = require('os');
+var ifaces = os.networkInterfaces();
+
 var express = require('express'),
     app     = express(),
     morgan  = require('morgan');
@@ -12,6 +16,30 @@ var port = process.env.PORT || process.env.OPENSHIFT_NODEJS_PORT || 8080,
     ip   = process.env.IP   || process.env.OPENSHIFT_NODEJS_IP || '0.0.0.0',
     mongoURL = process.env.OPENSHIFT_MONGODB_DB_URL || process.env.MONGO_URL,
     mongoURLLabel = "";
+
+
+var getIp = function () {
+  var ips = [];
+  Object.keys(ifaces).forEach(function (ifname) {
+    var alias = 0; 
+    ifaces[ifname].forEach(function (iface) {
+      if ('IPv4' !== iface.family || iface.internal !== false) {
+        // skip over internal (i.e. 127.0.0.1) and non-ipv4 addresses
+        return;
+      }
+  
+      if (alias >= 1) {
+        // this single interface has multiple ipv4 addresses
+        ips.push(ifname + ':' + alias, iface.address);
+      } else {
+        // this interface has only one ipv4 adress
+        ips.push(ifname, iface.address);
+      }
+      ++alias;
+    });
+  });
+  return ips;
+}
 
 if (mongoURL == null) {
   var mongoHost, mongoPort, mongoDatabase, mongoPassword, mongoUser;
@@ -90,7 +118,7 @@ app.get('/', function (req, res) {
       res.render('index.html', { pageCountMessage : count, dbInfo: dbDetails });
     });
   } else {
-    res.render('index.html', { pageCountMessage : null});
+    res.render('index.html', { pageCountMessage : null, ips: getIp()});
   }
 });
 
